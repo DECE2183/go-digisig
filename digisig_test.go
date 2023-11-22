@@ -1,4 +1,4 @@
-package main
+package digisig
 
 import (
 	"math/big"
@@ -13,8 +13,6 @@ var testMessage = []byte("hello there!")
 const (
 	testParamP  = "57896044618658097711785492504343953926634992332820282019728792003956564821041"
 	testParamA  = "7"
-	testParamB  = "43308876546767276905765904595650931995942111794451039583252968842033849580414"
-	testParamM  = "57896044618658097711785492504343953927082934583725450622380973592137631069619"
 	testParamQ  = "57896044618658097711785492504343953927082934583725450622380973592137631069619"
 	testParamPx = "2"
 	testParamPy = "4018974056539037503335449422937059775635739389905545080690979365213431566280"
@@ -31,16 +29,6 @@ func TestSignature256(t *testing.T) {
 	a, ok := new(big.Int).SetString(testParamA, 10)
 	if !ok {
 		t.Errorf("a parameter parse error")
-	}
-
-	b, ok := new(big.Int).SetString(testParamB, 10)
-	if !ok {
-		t.Errorf("b parameter parse error")
-	}
-
-	m, ok := new(big.Int).SetString(testParamM, 10)
-	if !ok {
-		t.Errorf("m parameter parse error")
 	}
 
 	q, ok := new(big.Int).SetString(testParamQ, 10)
@@ -75,7 +63,7 @@ func TestSignature256(t *testing.T) {
 	}
 
 	t.Logf("generated signature: %X", new(big.Int).SetBytes(testSign))
-	t.Logf("generated public key: (%X, %X)", pubKey.X, publicKey.Y)
+	t.Logf("generated public key: (%X, %X)", publicKey.X, publicKey.Y)
 
 	validator := NewValidator(publicKey, p, a, q, P, hash256)
 

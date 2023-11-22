@@ -1,4 +1,4 @@
-package main
+package digisig
 
 import (
 	"crypto/rand"

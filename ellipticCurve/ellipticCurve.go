@@ -11,7 +11,7 @@ func (p Point) Equal(b Point) bool {
 }
 
 func (p Point) IsNull() bool {
-	return p.X.Cmp(big.NewInt(0)) == 0
+	return p.X.Cmp(big.NewInt(0)) == 0 && p.Y.Cmp(big.NewInt(0)) == 0
 }
 
 type Curve struct {
@@ -23,7 +23,7 @@ func NewCurve(p, a *big.Int) *Curve {
 }
 
 func (c *Curve) Scalar(k *big.Int, p Point) Point {
-	res := Point{}
+	res := Point{big.NewInt(0), big.NewInt(0)}
 
 	for i := k.BitLen() - 1; i >= 0; i-- {
 		if k.Bit(i) == 1 {

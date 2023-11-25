@@ -2,7 +2,6 @@ package digisig
 
 import (
 	"hash"
-	"math"
 	"math/big"
 
 	curve "github.com/dece2183/go-digisig/ellipticCurve"
@@ -41,7 +40,7 @@ func (v *Validator) Validate(msg []byte, signature []byte) bool {
 	v.hashFunc.Reset()
 	v.hashFunc.Write(msg)
 
-	hs := big.NewInt(0).SetBytes(v.hashFunc.Sum([]byte{}))
+	hs := new(big.Int).SetBytes(v.hashFunc.Sum([]byte{}))
 	e := v.calcE(hs)
 
 	C := v.calcC(e, s, r).X
@@ -51,7 +50,7 @@ func (v *Validator) Validate(msg []byte, signature []byte) bool {
 }
 
 func (v *Validator) extract(signature []byte) (r, s *big.Int) {
-	offset := int(math.Ceil(float64(v.p.BitLen()) / 8))
+	offset := len(v.p.Bytes())
 	r = new(big.Int).SetBytes(signature[0:offset])
 	s = new(big.Int).SetBytes(signature[offset:])
 	return
@@ -60,7 +59,7 @@ func (v *Validator) extract(signature []byte) (r, s *big.Int) {
 func (v *Validator) calcE(hs *big.Int) *big.Int {
 	e := hs.Mod(hs, v.q)
 	if e.Cmp(big.NewInt(0)) == 0 {
-		return big.NewInt(0)
+		return big.NewInt(1)
 	}
 	return e
 }

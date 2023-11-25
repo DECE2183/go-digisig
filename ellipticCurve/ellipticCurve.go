@@ -2,6 +2,8 @@ package ellipticcurve
 
 import "math/big"
 
+var zero = big.NewInt(0)
+
 type Point struct {
 	X, Y *big.Int
 }
@@ -25,15 +27,61 @@ func NewCurve(p, a *big.Int) *Curve {
 func (c *Curve) Scalar(k *big.Int, p Point) Point {
 	res := Point{big.NewInt(0), big.NewInt(0)}
 
-	for i := k.BitLen() - 1; i >= 0; i-- {
+	for i := k.BitLen(); i >= 0; i-- {
+		res = c.Double(res)
 		if k.Bit(i) == 1 {
 			res = c.Sum(res, p)
-		} else {
-			res = c.Sum(res, res)
 		}
 	}
 
 	return res
+}
+
+func (c *Curve) Double(a Point) Point {
+	if a.IsNull() {
+		return a
+	}
+
+	x := big.NewInt(0)
+	y := big.NewInt(0)
+
+	dx := new(big.Int).Add(a.Y, a.Y)
+
+	if dx.Cmp(zero) < 0 {
+		dx = dx.Add(dx, c.p)
+	}
+
+	dy := new(big.Int).Mul(a.X, a.X)
+	dy = dy.Mul(dy, big.NewInt(3))
+	dy = dy.Add(dy, c.a)
+
+	if dy.Cmp(zero) < 0 {
+		dy = dy.Add(dy, c.p)
+	}
+
+	m := dx.ModInverse(dx, c.p)
+	m = m.Mul(m, dy)
+	m = m.Mod(m, c.p)
+
+	x = x.Mul(m, m)
+	x = x.Sub(x, a.X)
+	x = x.Sub(x, a.X)
+	x = x.Mod(x, c.p)
+
+	if x.Cmp(zero) < 0 {
+		x = x.Add(x, c.p)
+	}
+
+	y = y.Sub(a.X, x)
+	y = y.Mul(y, m)
+	y = y.Sub(y, a.Y)
+	y = y.Mod(y, c.p)
+
+	if y.Cmp(zero) < 0 {
+		y = y.Add(y, c.p)
+	}
+
+	return Point{x, y}
 }
 
 func (c *Curve) Sum(a, b Point) Point {
@@ -46,40 +94,42 @@ func (c *Curve) Sum(a, b Point) Point {
 	x := big.NewInt(0)
 	y := big.NewInt(0)
 
-	if b.Equal(a) {
-		// lambda = ((a.X**2 * 3 + a) * a.Y * 2).ModInverse
-		lambda := new(big.Int).Exp(a.X, big.NewInt(2), nil)               // lambda = a.X**2
-		lambda = lambda.Mul(lambda, big.NewInt(3))                        // lambda *= 3
-		lambda = lambda.Add(lambda, c.a)                                  // lambda += a
-		lambda = lambda.Mul(lambda, new(big.Int).Mul(a.Y, big.NewInt(2))) // lambda *= a.Y * 2
-		lambda = lambda.ModInverse(lambda, c.p)                           // lambda.ModInverse
+	dx := new(big.Int).Sub(b.X, a.X)
 
-		// x = (lambda**2 - a.X * 2) % p
-		x = x.Exp(lambda, big.NewInt(2), nil)              // x = lambda**2
-		x = x.Sub(x, new(big.Int).Mul(a.X, big.NewInt(2))) // x -= a.X * 2
-		x = x.Mod(x, c.p)                                  // x %= p
+	if dx.Cmp(zero) < 0 {
+		dx = dx.Add(dx, c.p)
+	}
 
-		// y = (-a.Y + lambda * (a.X - x)) % p
-		y = y.Neg(a.Y)                                                   // y = -a.Y
-		y = y.Add(y, new(big.Int).Mul(lambda, new(big.Int).Sub(a.X, x))) // y += lambda * (a.X - x)
-		y = y.Mod(y, c.p)                                                // y %= p
-	} else {
-		// lambda = ((b.Y - a.Y) * (b.X - a.X)) % p
-		lambda := new(big.Int).Sub(b.Y, a.Y)                    // lambda = b.Y - a.Y
-		lambda = lambda.Mul(lambda, new(big.Int).Sub(b.X, a.X)) // lambda *= b.X - a.X
-		lambda = lambda.ModInverse(lambda, c.p)                 // lambda %= p
+	dy := new(big.Int).Sub(b.Y, a.Y)
 
-		// x = ((lambda**2 mod |2|) - b.X - a.X) % p
-		x = new(big.Int).Exp(lambda, big.NewInt(2), c.p) // x = lambda**2 mod |2|
-		x = x.Sub(x, b.X)                                // x -= b.X
-		x = x.Sub(x, a.X)                                // x -= a.X
-		x = x.Mod(x, c.p)                                // x %= p
+	if dy.Cmp(zero) < 0 {
+		dy = dy.Add(dy, c.p)
+	}
 
-		// y = ((-a.Y % p) + lambda * (a.X - x)) % p
-		y = y.Neg(a.Y)                                                   // y = -a.Y
-		y = y.Mod(y, c.p)                                                // y %= p
-		y = y.Add(y, new(big.Int).Mul(lambda, new(big.Int).Sub(a.X, x))) // y += lambda * (a.X -  x)
-		y = y.Mod(y, c.p)                                                // y %= p
+	m := dx.ModInverse(dx, c.p)
+	m = m.Mul(m, dy)
+	m = m.Mod(m, c.p)
+
+	if m.Cmp(zero) < 0 {
+		m = m.Add(m, c.p)
+	}
+
+	x = x.Mul(m, m)
+	x = x.Sub(x, a.X)
+	x = x.Sub(x, b.X)
+	x = x.Mod(x, c.p)
+
+	if x.Cmp(zero) < 0 {
+		x = x.Add(x, c.p)
+	}
+
+	y = y.Sub(a.X, x)
+	y = y.Mul(y, m)
+	y = y.Sub(y, a.Y)
+	y = y.Mod(y, c.p)
+
+	if y.Cmp(zero) < 0 {
+		y = y.Add(y, c.p)
 	}
 
 	return Point{x, y}

@@ -1,9 +1,9 @@
 package digisig
 
 import (
+	"crypto/elliptic"
 	"crypto/rand"
 	"hash"
-	"math"
 	"math/big"
 
 	curve "github.com/dece2183/go-digisig/ellipticCurve"
@@ -16,7 +16,8 @@ type Signature struct {
 	_P       curve.Point
 	hashFunc hash.Hash
 	// internal variables
-	curve *curve.Curve
+	curve  *curve.Curve
+	ecurve *elliptic.CurveParams
 }
 
 func NewSignature(privateKey, p, a, q *big.Int, P curve.Point, hashFunc hash.Hash) *Signature {
@@ -29,6 +30,7 @@ func NewSignature(privateKey, p, a, q *big.Int, P curve.Point, hashFunc hash.Has
 		hashFunc: hashFunc,
 		curve:    curve.NewCurve(p, a),
 	}
+	elliptic.P384()
 	return s
 }
 
@@ -46,7 +48,7 @@ func (s *Signature) Sign(msg []byte) ([]byte, error) {
 	s.hashFunc.Reset()
 	s.hashFunc.Write(msg)
 
-	hs := big.NewInt(0).SetBytes(s.hashFunc.Sum([]byte{}))
+	hs := new(big.Int).SetBytes(s.hashFunc.Sum([]byte{}))
 
 	var e, k, r, _s *big.Int
 	var c curve.Point
@@ -77,7 +79,7 @@ recalculate:
 func (s *Signature) calcE(hs *big.Int) *big.Int {
 	e := hs.Mod(hs, s.q)
 	if e.Cmp(big.NewInt(0)) == 0 {
-		return big.NewInt(0)
+		return big.NewInt(1)
 	}
 	return e
 }
@@ -86,7 +88,7 @@ func (s *Signature) randK() (*big.Int, error) {
 	var err error
 
 	k := big.NewInt(1)
-	max := big.NewInt(1).Lsh(k, uint(s.q.BitLen()))
+	max := big.NewInt(1).Lsh(k, uint(len(s.q.Bytes())*8))
 
 	for {
 		k, err = rand.Int(rand.Reader, max)
@@ -106,7 +108,7 @@ func (s *Signature) genC(k *big.Int) curve.Point {
 func (s *Signature) calcR(c curve.Point) *big.Int {
 	// c.X % s.q
 	r := new(big.Int).Mod(c.X, s.q)
-	if r.Cmp(big.NewInt(0)) == 0 || r.BitLen() > s.p.BitLen() {
+	if r.Cmp(big.NewInt(0)) == 0 || len(r.Bytes()) > len(s.p.Bytes()) {
 		return nil
 	}
 	return r
@@ -117,14 +119,14 @@ func (s *Signature) calcS(e, k, r *big.Int) *big.Int {
 	_s := new(big.Int).Mul(r, s.key)
 	_s = _s.Add(_s, new(big.Int).Mul(k, e))
 	_s = _s.Mod(_s, s.q)
-	if _s.Cmp(big.NewInt(0)) == 0 || _s.BitLen() > s.p.BitLen() {
+	if _s.Cmp(big.NewInt(0)) == 0 || len(_s.Bytes()) > len(s.p.Bytes()) {
 		return nil
 	}
 	return _s
 }
 
 func (s *Signature) completion(num *big.Int) []byte {
-	expectedLen := int(math.Ceil(float64(s.p.BitLen()) / 8))
+	expectedLen := len(s.p.Bytes())
 	b := num.Bytes()
 
 	for len(b) < expectedLen {

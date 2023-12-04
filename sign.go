@@ -15,20 +15,20 @@ type Signature struct {
 	_P       curve.Point
 	hashFunc hash.Hash
 	// internal variables
-	blockSize int
-	curve     *curve.Curve
+	hashSize int
+	curve    *curve.Curve
 }
 
 func NewSignature(privateKey, p, a, q *big.Int, P curve.Point, hashFunc hash.Hash) *Signature {
 	s := &Signature{
-		key:       privateKey,
-		p:         p,
-		a:         a,
-		q:         q,
-		_P:        P,
-		hashFunc:  hashFunc,
-		blockSize: hashFunc.BlockSize(),
-		curve:     curve.NewCurve(p, a),
+		key:      privateKey,
+		p:        p,
+		a:        a,
+		q:        q,
+		_P:       P,
+		hashFunc: hashFunc,
+		hashSize: hashFunc.Size(),
+		curve:    curve.NewCurve(p, a),
 	}
 	return s
 }
@@ -87,7 +87,7 @@ func (s *Signature) randK() (*big.Int, error) {
 	var err error
 
 	k := big.NewInt(1)
-	max := big.NewInt(1).Lsh(k, uint(len(s.q.Bytes()))*8)
+	max := big.NewInt(1).Lsh(k, uint(s.hashSize*8))
 
 	for {
 		k, err = rand.Int(rand.Reader, max)
@@ -107,7 +107,7 @@ func (s *Signature) genC(k *big.Int) curve.Point {
 func (s *Signature) calcR(c curve.Point) *big.Int {
 	// c.X % s.q
 	r := new(big.Int).Mod(c.X, s.q)
-	if r.Cmp(big.NewInt(0)) == 0 || len(r.Bytes()) > s.blockSize {
+	if r.Cmp(big.NewInt(0)) == 0 || len(r.Bytes()) > s.hashSize {
 		return nil
 	}
 	return r
@@ -118,14 +118,14 @@ func (s *Signature) calcS(e, k, r *big.Int) *big.Int {
 	_s := new(big.Int).Mul(r, s.key)
 	_s = _s.Add(_s, new(big.Int).Mul(k, e))
 	_s = _s.Mod(_s, s.q)
-	if _s.Cmp(big.NewInt(0)) == 0 || len(_s.Bytes()) > s.blockSize {
+	if _s.Cmp(big.NewInt(0)) == 0 || len(_s.Bytes()) > s.hashSize {
 		return nil
 	}
 	return _s
 }
 
 func (s *Signature) completion(num *big.Int) []byte {
-	expectedLen := s.blockSize
+	expectedLen := s.hashSize
 	b := num.Bytes()
 
 	for len(b) < expectedLen {

@@ -87,7 +87,7 @@ func (s *Signature) randK() (*big.Int, error) {
 	var err error
 
 	k := big.NewInt(1)
-	max := big.NewInt(1).Lsh(k, uint(s.hashSize*8))
+	max := big.NewInt(1).Lsh(k, uint(len(s.q.Bytes()))*8)
 
 	for {
 		k, err = rand.Int(rand.Reader, max)

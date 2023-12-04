@@ -13,18 +13,20 @@ type Validator struct {
 	_P, _Q   curve.Point
 	hashFunc hash.Hash
 	// internal variables
-	curve *curve.Curve
+	blockSize int
+	curve     *curve.Curve
 }
 
 func NewValidator(pubKey curve.Point, p, a, q *big.Int, P curve.Point, hashFunc hash.Hash) *Validator {
 	v := &Validator{
-		p:        p,
-		a:        a,
-		q:        q,
-		_P:       P,
-		_Q:       pubKey,
-		hashFunc: hashFunc,
-		curve:    curve.NewCurve(p, a),
+		p:         p,
+		a:         a,
+		q:         q,
+		_P:        P,
+		_Q:        pubKey,
+		hashFunc:  hashFunc,
+		blockSize: hashFunc.BlockSize(),
+		curve:     curve.NewCurve(p, a),
 	}
 	return v
 }
@@ -50,9 +52,8 @@ func (v *Validator) Validate(msg []byte, signature []byte) bool {
 }
 
 func (v *Validator) extract(signature []byte) (r, s *big.Int) {
-	offset := len(v.p.Bytes())
-	r = new(big.Int).SetBytes(signature[0:offset])
-	s = new(big.Int).SetBytes(signature[offset:])
+	r = new(big.Int).SetBytes(signature[0:v.blockSize])
+	s = new(big.Int).SetBytes(signature[v.blockSize:])
 	return
 }
 

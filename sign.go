@@ -1,7 +1,6 @@
 package digisig
 
 import (
-	"crypto/elliptic"
 	"crypto/rand"
 	"hash"
 	"math/big"
@@ -16,21 +15,21 @@ type Signature struct {
 	_P       curve.Point
 	hashFunc hash.Hash
 	// internal variables
-	curve  *curve.Curve
-	ecurve *elliptic.CurveParams
+	blockSize int
+	curve     *curve.Curve
 }
 
 func NewSignature(privateKey, p, a, q *big.Int, P curve.Point, hashFunc hash.Hash) *Signature {
 	s := &Signature{
-		key:      privateKey,
-		p:        p,
-		a:        a,
-		q:        q,
-		_P:       P,
-		hashFunc: hashFunc,
-		curve:    curve.NewCurve(p, a),
+		key:       privateKey,
+		p:         p,
+		a:         a,
+		q:         q,
+		_P:        P,
+		hashFunc:  hashFunc,
+		blockSize: hashFunc.BlockSize(),
+		curve:     curve.NewCurve(p, a),
 	}
-	elliptic.P384()
 	return s
 }
 
@@ -88,7 +87,7 @@ func (s *Signature) randK() (*big.Int, error) {
 	var err error
 
 	k := big.NewInt(1)
-	max := big.NewInt(1).Lsh(k, uint(len(s.q.Bytes())*8))
+	max := big.NewInt(1).Lsh(k, uint(len(s.q.Bytes()))*8)
 
 	for {
 		k, err = rand.Int(rand.Reader, max)
@@ -108,7 +107,7 @@ func (s *Signature) genC(k *big.Int) curve.Point {
 func (s *Signature) calcR(c curve.Point) *big.Int {
 	// c.X % s.q
 	r := new(big.Int).Mod(c.X, s.q)
-	if r.Cmp(big.NewInt(0)) == 0 || len(r.Bytes()) > len(s.p.Bytes()) {
+	if r.Cmp(big.NewInt(0)) == 0 || len(r.Bytes()) > s.blockSize {
 		return nil
 	}
 	return r
@@ -119,14 +118,14 @@ func (s *Signature) calcS(e, k, r *big.Int) *big.Int {
 	_s := new(big.Int).Mul(r, s.key)
 	_s = _s.Add(_s, new(big.Int).Mul(k, e))
 	_s = _s.Mod(_s, s.q)
-	if _s.Cmp(big.NewInt(0)) == 0 || len(_s.Bytes()) > len(s.p.Bytes()) {
+	if _s.Cmp(big.NewInt(0)) == 0 || len(_s.Bytes()) > s.blockSize {
 		return nil
 	}
 	return _s
 }
 
 func (s *Signature) completion(num *big.Int) []byte {
-	expectedLen := len(s.p.Bytes())
+	expectedLen := s.blockSize
 	b := num.Bytes()
 
 	for len(b) < expectedLen {

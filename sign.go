@@ -2,10 +2,10 @@ package digisig
 
 import (
 	"crypto/rand"
-	"hash"
 	"math/big"
 
 	curve "github.com/dece2183/go-digisig/ellipticCurve"
+	"github.com/dece2183/go-stribog"
 )
 
 type Signature struct {
@@ -13,13 +13,13 @@ type Signature struct {
 	key      *big.Int // (d)
 	p, a, q  *big.Int
 	_P       curve.Point
-	hashFunc hash.Hash
+	hashFunc *stribog.Stribog
 	// internal variables
 	hashSize int
 	curve    *curve.Curve
 }
 
-func NewSignature(privateKey, p, a, q *big.Int, P curve.Point, hashFunc hash.Hash) *Signature {
+func NewSignature(privateKey, p, a, q *big.Int, P curve.Point, hashFunc *stribog.Stribog) *Signature {
 	s := &Signature{
 		key:      privateKey,
 		p:        p,
@@ -44,10 +44,7 @@ func (s *Signature) GenerateKey() curve.Point {
 //
 // This function returns only signature without message.
 func (s *Signature) Sign(msg []byte) ([]byte, error) {
-	s.hashFunc.Reset()
-	s.hashFunc.Write(msg)
-
-	hs := new(big.Int).SetBytes(s.hashFunc.Sum([]byte{}))
+	hs := new(big.Int).SetBytes(s.hashFunc.CheckSum(msg))
 
 	var e, k, r, _s *big.Int
 	var c curve.Point

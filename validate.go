@@ -1,23 +1,23 @@
 package digisig
 
 import (
-	"hash"
 	"math/big"
 
 	curve "github.com/dece2183/go-digisig/ellipticCurve"
+	"github.com/dece2183/go-stribog"
 )
 
 type Validator struct {
 	// external parameters
 	p, a, q  *big.Int
 	_P, _Q   curve.Point
-	hashFunc hash.Hash
+	hashFunc *stribog.Stribog
 	// internal variables
 	hashSize int
 	curve    *curve.Curve
 }
 
-func NewValidator(pubKey curve.Point, p, a, q *big.Int, P curve.Point, hashFunc hash.Hash) *Validator {
+func NewValidator(pubKey curve.Point, p, a, q *big.Int, P curve.Point, hashFunc *stribog.Stribog) *Validator {
 	v := &Validator{
 		p:        p,
 		a:        a,
@@ -39,10 +39,7 @@ func (v *Validator) Validate(msg []byte, signature []byte) bool {
 		return false
 	}
 
-	v.hashFunc.Reset()
-	v.hashFunc.Write(msg)
-
-	hs := new(big.Int).SetBytes(v.hashFunc.Sum([]byte{}))
+	hs := new(big.Int).SetBytes(v.hashFunc.CheckSum(msg))
 	e := v.calcE(hs)
 
 	C := v.calcC(e, s, r).X
